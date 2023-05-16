@@ -1,0 +1,6 @@
+<rdf:Description rdf:about="http://www.w3.org/TR/rdf-syntax-grammar">
+    <rdf:Description>
+        <rdf:Description rdf:about="http://purl.org/net/dajobe/">
+        </rdf:Description>
+    </rdf:Description>
+</rdf:Description>

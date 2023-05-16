@@ -1,0 +1,295 @@
+/*
+   Simple +/-/* expression language; 
+   parser evaluates constant expressions on the fly
+*/
+
+package cup.example;
+
+import java_cup.runtime.*;
+import cup.example.Lexer;
+import java.io.IOException;
+import java.io.File;
+import java.io.FileInputStream;
+
+
+parser code {:
+ protected Lexer lexer;
+  	protected MultiTree syntaxTree = new MultiTree(); 
+	
+ 	 public MultiTree getSyntaxTree()
+  	{
+		return syntaxTree;
+  	}
+  	protected MultiTreeNode createDeclarationNode(MultiTreeNode declaration) { throw new UnsupportedOperationException();}
+ 	protected MultiTreeNode createFunctionDeclarationNode(MultiTreeNode typeSpecifier, String identifierName, MultiTreeNode paramsList, MultiTreeNode compoundStatement) { throw new UnsupportedOperationException(); }
+  	protected MultiTreeNode createTypeSpecifier(String typeName){ throw new UnsupportedOperationException();  }
+	protected MultiTreeNode createListNode(String listName, MultiTreeNode firstChild){throw new UnsupportedOperationException();  }
+	protected MultiTreeNode createVarDeclaration(MultiTreeNode typeSpecifier, String identifierName, Integer value ){throw new UnsupportedOperationException();  }
+	protected MultiTreeNode createCompoundStatement(MultiTreeNode declarations, MultiTreeNode instructions){throw new UnsupportedOperationException();  }
+	protected MultiTreeNode createIfStatement(String identifier, MultiTreeNode ifInstructions, MultiTreeNode elseInstructions){throw new UnsupportedOperationException();  }
+:}
+
+/* define how to connect to the scanner! */
+init with {:
+  ComplexSymbolFactory f = new ComplexSymbolFactory();
+  symbolFactory = f;
+  File file = new File("input.txt");
+  FileInputStream fis = null;
+  try {
+    fis = new FileInputStream(file);
+  } catch (IOException e) {
+    e.printStackTrace();
+  } 
+  lexer = new Lexer(f,fis);
+:};
+scan with {: return lexer.next_token(); :};
+
+/* Terminals (tokens returned by the scanner). */
+terminal SEMI, PLUS, MINUS, UMINUS, TIMES, LPAREN, RPAREN, StartTag, ResumeTag,ID ,about,EndTag,ARON,SLASH,OPSL,QUEST,EXCL,UNDER,OLSHIFT,OLT,OGT,OGE,ORSHIFT,KLSQBKT,KLRQBKT,KLBRKT,BRBRKT,KRBRKT,FULL;
+terminal parseType, resource,nodeID,Description,container,idAboutAttr,aboutEachAttr,EQUAL,RDFLI,RDFDESCR,RDFABOUT,RDFAEP,RDFBAGID,COMMA,OLE,QOT,KRSQBKT,WS;
+terminal bagIdAttr,propAttr,property,typedNode,propName, typeName,idRefAttr,value,name,RDFID,RDFR,RDFNODEID,RDFABOUTE,RDFRESOURCE,RDFDATATYPE,RDFPARSETYPE;
+terminal anyString,URI,IDsymbol,NSname,sequence,bag,alternative,member,referencedItem, inlineItem, dataType,bagID,Terms,aboutEach,aboutEachPrefix,AnyTag;
+terminal Integer    NUMBER;        // our scanner provides numbers as integers
+
+/* Non terminals */
+non terminal  	MultiTreeNode		coreSyntaxTerms, syntaxTerms, oldTerms ;
+non terminal	MultiTreeNode		propertyElementURIs,propertyAttributeURIs,doc,RDF,nodeElementList,nodeElementURIs;
+non terminal 	MultiTreeNode		nodeElement,propertyEltList, propertyElt,resourcePropertyElt,literalPropertyElt;
+non terminal 	MultiTreeNode		parseTypeLiteralPropertyElt, parseTypeResourcePropertyElt, parseTypeCollectionPropertyEltl;
+non terminal 	MultiTreeNode		parseTypeOtherPropertyElt, emptyPropertyElt,parseTypeCollectionPropertyElt,idAttr,nodeIdAttr,aboutAttr,propertyAttr,resourceAttr,datatypeAttr,parseLiteral;
+non terminal 	MultiTreeNode		parseResource,parseCollection,parseOther; 
+non terminal Integer    expr;      // used to store evaluated subexpressions
+
+/* Precedences */
+precedence left PLUS, MINUS;
+precedence left TIMES;
+precedence left UMINUS;
+
+/* The grammar rules */
+coreSyntaxTerms ::= RDF:rdf         	{: System.out.println ( "coreSyntaxTerms -> RDF \n ") ; 
+										RESULT = syntaxTree.create("coreSyntaxTerms", rdf);
+										:}
+				| RDFID				{: System.out.println ( "coreSyntaxTerms -> RDFID \n ") ; 
+										 RESULT = createTypeSpecifier("RDFID");
+:}
+				| RDFABOUT			{: System.out.println ( "coreSyntaxTerms -> RDFABOUT \n ") ; 
+										 RESULT = createTypeSpecifier("RDFABOUT");
+:}				
+				| RDFPARSETYPE	    {: System.out.println ( "coreSyntaxTerms -> RDFPARSETYPE \n ") ; 
+													  RESULT = createTypeSpecifier("RDFPARSETYPE");
+:}
+				| RDFRESOURCE		{: System.out.println ( "coreSyntaxTerms -> RDFRESOURCE \n ") ; 
+											 RESULT = createTypeSpecifier("RDFRESOURCE");
+:}
+				| RDFNODEID 		{: System.out.println ( "coreSyntaxTerms -> RDFNODEID \n ") ; 
+										  RESULT = createTypeSpecifier("RDFNODEID");
+:}
+				| RDFDATATYPE 		{: System.out.println ( "coreSyntaxTerms -> RDFDATATYPE \n ") ; 
+										 RESULT = createTypeSpecifier("RDFDATATYPE");
+:} 
+				;
+syntaxTerms ::= 	coreSyntaxTerms:cst {: System.out.println ( "SyntaxTerms -> coreSyntaxTerms \n ") ; 
+										RESULT = createListNode("syntaxTerms", cst);
+:}
+				| RDFDESCR 			{: System.out.println ( "syntaxTerms -> RDFDESCR \n ") ; 
+										RESULT = createTypeSpecifier("RDFDESCR");
+:}
+				| RDFLI 			{: System.out.println ( "syntaxTerms -> RDFLI \n ") ; 
+										RESULT = createTypeSpecifier("RDFLI");
+:} 
+				;
+oldTerms	::= 	RDFABOUTE 	{: System.out.println ( "oldTerms -> RDFABOUTE  \n ") ; 
+
+:}
+				| RDFAEP 		{: System.out.println ( "oldTerms-> RDFAEP  \n ") ; 
+
+:}
+				| RDFBAGID		{: System.out.println ( "oldTerms -> RDFBAGID \n ") ; 
+
+:}
+				;
+nodeElementURIs ::= 	coreSyntaxTerms 	{: System.out.println ( "nodeElementURIs -> coreSyntaxTerms  \n ") ; 
+
+:}
+						| RDFLI				{: System.out.println ( "nodeElementURIs -> RDFLI  \n ") ; 
+
+:}
+						| oldTerms 			{: System.out.println ( "nodeElementURIs -> oldTerms  \n ") ; 
+
+:}
+						;
+propertyElementURIs	::= coreSyntaxTerms 	{: System.out.println ( "propertyElementURIs -> coreSyntaxTerms  \n ") ; 
+
+:}
+						| RDFDESCR			{: System.out.println ( "propertyElementURIs -> RDFDESCR  \n ") ; 
+
+:}
+						| oldTerms			{: System.out.println ( "propertyElementURIs -> oldTerms  \n ") ; 
+
+:}
+						;
+propertyAttributeURIs ::= coreSyntaxTerms 	{: System.out.println ( "propertyAttributeURIs -> coreSyntaxTerms  \n ") ; 
+
+:}
+						| RDFDESCR			{: System.out.println ( "propertyAttributeURIs -> RDFDESCR  \n ") ; 
+
+:}
+						| RDFLI 			{: System.out.println ( "propertyAttributeURIs -> RDFLI  \n ") ; 
+
+:}
+						| oldTerms 			{: System.out.println ( "propertyAttributeURIs -> oldTerms  \n ") ; 
+
+:}
+						;
+doc	::=  RDF	{: System.out.println ( "doc -> RDF  \n ") ; 
+
+:}
+		; 	
+RDF	::= RDFR 	{: System.out.println ( "RDF -> RDFR  \n ") ; 
+
+:}
+		;	
+								
+nodeElementList	::= nodeElement:ne 	{: System.out.println ( "nodeElementList -> nodeElement  \n ") ; 
+										RESULT = createListNode("nodeElementList", ne);
+:}
+					;
+nodeElement	::= URI EQUAL coreSyntaxTerms 	{: System.out.println ( "nodeElement -> coreSyntaxTerms  \n ") ; 
+
+:}
+			| RDFDESCR						{: System.out.println ( "nodeElement -> RDFDESCR  \n ") ; :}
+			| oldTerms 						{: System.out.println ( "nodeElement -> oldTerms  \n ") ; :}
+				| idAttr 					{: System.out.println ( "nodeElement -> idAttr  \n ") ; :}
+				| nodeIdAttr 				{: System.out.println ( "nodeElement -> nodeIdAttr  \n ") ; :}
+				| aboutAttr COMMA  coreSyntaxTerms 		{: System.out.println ( "nodeElement -> aboutAttr  \n ") ; :}
+													| RDFDESCR 	{: System.out.println ( "nodeElement -> RDFDESCR  \n ") ; :}
+													| RDFLI 	{: System.out.println ( "nodeElement -> RDFLI  \n ") ; :}
+													| oldTerms	{: System.out.println ( "nodeElement -> oldTerms  \n ") ; :}
+				| COMMA  coreSyntaxTerms 						{: System.out.println ( "nodeElement -> COMMA coreSyntaxTerms  \n ") ; :}
+											| RDFDESCR 			{: System.out.println ( "nodeElement -> RDFDESCR  \n ") ; :}
+											| RDFLI 			{: System.out.println ( "nodeElement -> RDFLI  \n ") ; :}
+											| oldTerms 			{: System.out.println ( "nodeElement -> oldTerms  \n ") ; :}
+											; 
+propertyEltList	::= 	propertyEltList propertyElt				{: System.out.println ( "propertyEltList -> propertyElt  \n ") ; :}
+						| ;
+						
+propertyElt ::=	resourcePropertyElt 							{: System.out.println ( "propertyElt -> resourcePropertyElt  \n ") ; :}
+							| literalPropertyElt 				{: System.out.println ( "propertyElt -> literalPropertyElt  \n ") ; :}
+							| parseTypeLiteralPropertyElt 		{: System.out.println ( "propertyElt -> parseTypeLiteralPropertyElt  \n ") ; :}
+							| parseTypeResourcePropertyElt 		{: System.out.println ( "propertyElt -> parseTypeResourcePropertyElt  \n ") ; :}
+							| parseTypeCollectionPropertyElt 	{: System.out.println ( "propertyElt -> parseTypeCollectionPropertyElt  \n ") ; :}
+							| parseTypeOtherPropertyElt 		{: System.out.println ( "propertyElt -> parseTypeOtherPropertyElt  \n ") ; :}
+							| emptyPropertyElt 					{: System.out.println ( "propertyElt -> emptyPropertyElt  \n ") ; :}
+							;
+resourcePropertyElt	::=  URI EQUAL coreSyntaxTerms 				{: System.out.println ( "resourcePropertyElt -> coreSyntaxTerms  \n ") ; :}
+						| RDFDESCR								{: System.out.println ( "resourcePropertyElt -> RDFDESCR  \n ") ; :}
+						| oldTerms COMMA idAttr propertyEltList	{: System.out.println ( "resourcePropertyElt -> oldTerms COMMA idAttr propertyEltList  \n ") ; :}
+						| oldTerms COMMA propertyEltList		{: System.out.println ( "resourcePropertyElt -> oldTerms COMMA propertyEltList	  \n ") ; :}
+						;		
+literalPropertyElt ::=	 URI EQUAL  COMMA datatypeAttr			{: System.out.println ( "literalPropertyElt -> COMMA datatypeAttr  \n ") ; :}
+						| URI EQUAL idAttr COMMA 				{: System.out.println ( "literalPropertyElt -> idAttr COMMA  \n ") ; :}
+						| URI EQUAL idAttr COMMA datatypeAttr	{: System.out.println ( "literalPropertyElt -> idAttr COMMA datatypeAttr  \n ") ; :}
+						| URI EQUAL  COMMA  					{: System.out.println ( "literalPropertyElt -> COMMA  \n ") ; :}
+						;
+
+parseTypeLiteralPropertyElt	::=  URI EQUAL propertyEltList {: System.out.println ( "parseTypeLiteralPropertyElt -> propertyEltList  \n ") ; :}
+;
+parseTypeResourcePropertyElt ::= URI EQUAL coreSyntaxTerms 											{: System.out.println ( "parseTypeResourcePropertyElt -> coreSyntaxTerms \n") ; :}
+														| RDFDESCR 									{: System.out.println ( "parseTypeResourcePropertyElt -> RDFDESCR \n" ) ; :}
+														| oldTerms  COMMA idAttr COMMA parseLiteral {: System.out.println ( "parseTypeResourcePropertyElt -> oldTerms  COMMA idAttr COMMA parseLiteral \n" ) ; :}
+														| oldTerms  COMMA  parseLiteral 			{: System.out.println ( "parseTypeResourcePropertyElt -> oldTerms  COMMA  parseLiteral \n " ) ; :}
+														;			
+parseTypeCollectionPropertyElt ::=	URI EQUAL coreSyntaxTerms 										{: System.out.println ( "parseTypeCollectionPropertyElt -> coreSyntaxTerms \n" ) ; :}
+														| RDFDESCR 									{: System.out.println ( "parseTypeCollectionPropertyElt -> RDFDESCR \n" ) ; :}
+														| oldTerms  COMMA idAttr  COMMA parseResource 	{: System.out.println ( "parseTypeCollectionPropertyElt ->  oldTerms  COMMA idAttr  COMMA parseResource  \n" ) ; :}
+														| oldTerms  COMMA  parseResource  			{: System.out.println ( "parseTypeCollectionPropertyElt -> oldTerms  COMMA  parseResource  	 \n" ) ; :}
+														;
+parseTypeOtherPropertyElt ::=	URI EQUAL coreSyntaxTerms 											{: System.out.println ( "parseTypeOtherPropertyElt -> coreSyntaxTerms \n" ) ; :}
+														| RDFDESCR 									{: System.out.println ( "parseTypeOtherPropertyElt -> RDFDESCR \n" ) ; :}
+														| oldTerms  COMMA idAttr COMMA parseOther	{: System.out.println ( "parseTypeOtherPropertyElt -> oldTerms  COMMA idAttr COMMA parseOther \n" ) ; :}
+														| oldTerms  COMMA  parseOther				{: System.out.println ( "parseTypeOtherPropertyElt -> oldTerms  COMMA  parseOther	 \n" ) ; :}
+														| propertyEltList 							{: System.out.println ( "parseTypeOtherPropertyElt -> propertyEltList \n" ) ; :}
+														;
+emptyPropertyElt ::=   URI EQUAL coreSyntaxTerms 																								{: System.out.println ( "emptyPropertyElt -> propertyEltList \n" ) ; :}
+														| RDFDESCR 																				{: System.out.println ( "emptyPropertyElt -> RDFDESCR \n" ) ; :}
+														| oldTerms	COMMA  ( resourceAttr | nodeIdAttr ) COMMA propertyEltList					{: System.out.println ( "emptyPropertyElt -> oldTerms	COMMA  ( resourceAttr | nodeIdAttr ) COMMA propertyEltList	 \n" ) ; :}
+														| oldTerms	COMMA  idAttr COMMA propertyEltList											{: System.out.println ( "emptyPropertyElt -> oldTerms	COMMA  idAttr COMMA propertyEltList	 \n" ) ; :}
+														| oldTerms	COMMA  idAttr COMMA ( resourceAttr | nodeIdAttr )  COMMA propertyEltList	{: System.out.println ( "emptyPropertyElt -> oldTerms	COMMA  idAttr COMMA ( resourceAttr | nodeIdAttr )  COMMA propertyEltList \n" ) ; :}
+														| oldTerms	COMMA   propertyEltList 													{: System.out.println ( "emptyPropertyElt -> oldTerms	COMMA   propertyEltList  \n" ) ; :}
+														;
+nodeIdAttr ::=	RDFNODEID EQUAL RDFID  {: System.out.println ( "nodeIdAttr -> RDFNODEID \n" ) ; 
+
+:}
+									   {: System.out.println ( "nodeIdAttr -> RDFID \n" ) ; 
+
+:}
+				;
+aboutAttr ::=	RDFABOUT EQUAL URI {: System.out.println ( "aboutAttr -> RDFABOUT \n" ) ; 
+
+:} 
+								   {: System.out.println ( "aboutAttr -> URI \n" ) ; 
+
+:} 
+				;
+propertyAttr	::= coreSyntaxTerms  {: System.out.println ( "propertyAttr -> coreSyntaxTerms \n" ) ; 
+
+:}
+					| RDFDESCR		{: System.out.println ( "propertyAttr -> RDFDESCR \n" ) ; 
+
+:}
+					| RDFLI			{: System.out.println ( "propertyAttr -> RDFLI \n" ) ; 
+
+:}
+					| oldTerms  	{: System.out.println ( "propertyAttr -> oldTerms \n" ) ; 
+
+:}
+					EQUAL anyString {: System.out.println ( "propertyAttr -> anyString \n" ) ; 
+
+:}
+				;
+resourceAttr	::= RDFRESOURCE EQUAL RDFID {: System.out.println ( "resourceAttr -> RDFRESOURCE \n" ) ; 
+
+:}
+											{: System.out.println ( "resourceAttr -> RDFID \n" ) ; 
+
+:}
+				;							
+datatypeAttr	::= RDFDATATYPE EQUAL RDFID {: System.out.println ( "datatypeAttr -> RDFDATATYPE \n" ) ; 
+
+:}
+											{: System.out.println ( "datatypeAttr -> RDFID \n" ) ; 
+
+:}
+				;
+parseLiteral	::= RDFPARSETYPE EQUAL anyString 	{: System.out.println ( "parseLiteral -> RDFPARSETYPE \n" ) ; 
+
+:}
+													{: System.out.println ( "parseLiteral -> anyString \n" ) ; 
+
+:}
+				;
+parseResource	::= RDFPARSETYPE EQUAL anyString 	{: System.out.println ( "parseResource -> RDFPARSETYPE \n" ) ; 
+
+:}
+													{: System.out.println ( "parseResource -> anyString \n" ) ; 
+
+:}
+				;
+parseCollection	::= RDFPARSETYPE EQUAL anyString 	{: System.out.println ( "parseCollection -> RDFPARSETYPE \n" ) ; 
+
+													:}
+													{: System.out.println ( "parseCollection -> anyString \n" ) ; 
+
+													:}
+													;
+parseOther	::= RDFPARSETYPE:ptype EQUAL anyString:as 		{: System.out.println ( "parseOther -> RDFPARSETYPE \n" ) ; 
+														RESULT = createVarDeclaration(ptype,as,1);
+													:}
+													{: System.out.println ( "parseOther -> anyString \n" ) ; 
+
+													:}
+													;
+
+
+
+
